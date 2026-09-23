@@ -1,0 +1,353 @@
+{
+  "name": "Orchestrator \u2014 Scheme Assistant",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "orchestrate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "9877da81-bec9-4863-b4b9-17a18c56da0d",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        96
+      ],
+      "webhookId": "30fef1e1-d93e-469d-88db-e5f88e16fd8d"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "groqApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'llama-3.3-70b-versatile', temperature: 0, messages: [ { role: 'system', content: 'You extract an applicant profile for Indian government welfare schemes from the user message. Reply ONLY with a JSON object with keys state (string), occupation (string), income (number, annual family income in INR), need (string \u2014 MUST be exactly one of: education, welfare, healthcare, financial_inclusion \u2014 whichever is the closest match to what the user is asking about; do not invent other values; if genuinely unclear, use welfare). If a value is not stated, use an empty string, or 0 for income.' }, { role: 'user', content: String(($json.body || {}).message || '') } ], response_format: { type: 'json_object' } }) }}",
+        "options": {}
+      },
+      "id": "4528a69c-e430-40c6-9a88-cbd85e739456",
+      "name": "Groq Extract Profile",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        224,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "let parsed = null;\ntry {\n  const content = $json.choices && $json.choices[0] && $json.choices[0].message ? $json.choices[0].message.content : null;\n  parsed = typeof content === 'string' ? JSON.parse(content) : content;\n} catch (e) {\n  parsed = null;\n}\nconst hasSomething = parsed && (parsed.state || parsed.occupation || Number(parsed.income) > 0 || parsed.need);\nif (!hasSomething) {\n  return { json: { parse_ok: false, profile: null, clarify: 'To find the right schemes, could you tell me your state, your occupation, your approximate annual family income, and what kind of help you are looking for?' } };\n}\nconst profile = {\n  state: parsed.state || '',\n  occupation: parsed.occupation || '',\n  income: Number(parsed.income) || 0,\n  need: parsed.need || '',\n};\nreturn { json: { parse_ok: true, profile } };"
+      },
+      "id": "86fd05b2-bfd8-4c8f-9029-27cf73db79a1",
+      "name": "Parse Profile",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "parse-ok",
+              "leftValue": "={{ $json.parse_ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "72af439b-1369-4387-9d8c-f4133dc175cc",
+      "name": "Parse OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        672,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: $('Parse Profile').first().json.profile }];"
+      },
+      "id": "96f13eef-6d7f-4cb2-808f-f88d9c2d9929",
+      "name": "Prep Discovery Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "d6dpqCOBnoez6Hte",
+          "cachedResultName": "Discovery \u2014 Candidate Schemes"
+        },
+        "options": {}
+      },
+      "id": "7ccc6f51-96f7-40a3-bbb5-112270d0dbb0",
+      "name": "Run Discovery",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1120,
+        0
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const profile = $('Parse Profile').first().json.profile;\nreturn { json: { ...$json, profile } };"
+      },
+      "id": "86f3a6dd-88d2-4532-9941-b5d84f8ec3aa",
+      "name": "Attach Profile",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "ErMLtoBE3Y7uzTXe",
+          "cachedResultName": "Eligibility \u2014 Scheme Evaluation"
+        },
+        "options": {}
+      },
+      "id": "36635d64-8739-4361-9679-6dfb417e282d",
+      "name": "Run Eligibility",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1568,
+        0
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = $input.all().map(i => i.json).filter(j => j && j.scheme_id);\nconst profile = $('Parse Profile').first().json.profile;\nconst eligible = results.filter(r => r.eligible);\nlet reply;\nif (eligible.length === 0) {\n  reply = 'Based on the details you shared, I could not confirm eligibility for any scheme right now.' + (results.length ? ' I reviewed ' + results.length + ' candidate scheme(s).' : '');\n} else {\n  reply = 'You may be eligible for: ' + eligible.map(r => r.scheme_id).join(', ') + '. ' + eligible.map(r => r.scheme_id + ' \u2014 ' + r.explanation).join(' ');\n}\nreturn [{ json: { reply, extracted_profile: profile, matches: results } }];"
+      },
+      "id": "b0b1c69c-28eb-4fe7-b3df-0881d41e9ab0",
+      "name": "Format Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "0413c389-0379-49af-bff3-f7689c67089a",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2016,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return { json: { reply: $json.clarify || 'Could you share a few more details so I can help?', extracted_profile: null, matches: [] } };"
+      },
+      "id": "9f9c418c-b713-4fa2-b717-814edd85fe1c",
+      "name": "Clarify Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        192
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Groq Extract Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Extract Profile": {
+      "main": [
+        [
+          {
+            "node": "Parse Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Profile": {
+      "main": [
+        [
+          {
+            "node": "Parse OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse OK?": {
+      "main": [
+        [
+          {
+            "node": "Prep Discovery Input",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Clarify Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Discovery Input": {
+      "main": [
+        [
+          {
+            "node": "Run Discovery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Discovery": {
+      "main": [
+        [
+          {
+            "node": "Attach Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Attach Profile": {
+      "main": [
+        [
+          {
+            "node": "Run Eligibility",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Eligibility": {
+      "main": [
+        [
+          {
+            "node": "Format Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Reply": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clarify Reply": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "fd3d2c95-9b68-4582-9ce2-cef5d6d3e3bb",
+  "meta": {
+    "instanceId": "6b235123a1def484ceddb913479e4f659caee09a56e313fc888ba4e436649fb6"
+  },
+  "nodeGroups": [
+    {
+      "id": "73b6606f-8ea0-4c59-9efb-0e94d4c8cbca",
+      "name": "Extract profile",
+      "nodeIds": [
+        "4528a69c-e430-40c6-9a88-cbd85e739456",
+        "86fd05b2-bfd8-4c8f-9029-27cf73db79a1"
+      ],
+      "description": "Sends the user message to Groq to get state, occupation, income and need, then safely parses it with a clarifying-question fallback."
+    },
+    {
+      "id": "033d2350-9450-4a75-8990-bb077439f82a",
+      "name": "Match & evaluate schemes",
+      "nodeIds": [
+        "96f13eef-6d7f-4cb2-808f-f88d9c2d9929",
+        "7ccc6f51-96f7-40a3-bbb5-112270d0dbb0",
+        "86f3a6dd-88d2-4532-9941-b5d84f8ec3aa",
+        "36635d64-8739-4361-9679-6dfb417e282d",
+        "b0b1c69c-28eb-4fe7-b3df-0881d41e9ab0"
+      ],
+      "description": "Runs Discovery for candidate schemes, attaches the profile, evaluates each through the Eligibility workflow, then builds the combined reply."
+    }
+  ],
+  "id": "4cbqbTodxGQoY7xv",
+  "tags": []
+}

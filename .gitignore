@@ -1,0 +1,23 @@
+# Environment variables and secrets — never commit these
+.env
+.env.local
+.env*.local
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+build/
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# n8n local runtime data (if you self-host with the local data folder)
+.n8n/

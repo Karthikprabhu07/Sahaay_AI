@@ -1,0 +1,276 @@
+{
+  "name": "Eligibility \u2014 Scheme Evaluation",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "076a77bd-d5b3-4595-b8bc-caf22a0b8644",
+      "name": "When Called",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "hard-rules",
+              "leftValue": "={{ ( Number($json.max_family_income_inr || 0) === 0 || Number(($json.profile || {}).income || 0) <= Number($json.max_family_income_inr) ) && ( ['', 'any'].includes(String($json.occupation || '').toLowerCase().trim()) || String($json.occupation || '').toLowerCase().trim() === String(($json.profile || {}).occupation || '').toLowerCase().trim() ) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "3b9ffe85-a502-4d67-8a74-a2fd3d7a0155",
+      "name": "Passes Hard Rules?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        224,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "other-criteria-present",
+              "leftValue": "={{ $json.other_criteria }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c4d8574d-5594-4ffb-96e2-53beccd17ce5",
+      "name": "Has Free-Text Criteria?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        448,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "groqApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'llama-3.3-70b-versatile', temperature: 0, messages: [ { role: 'system', content: 'You are an eligibility checker for Indian government welfare schemes. Decide whether the applicant satisfies the scheme free-text criterion. You MUST name the exact criterion you evaluated and give concrete reasoning that references the applicant profile. Never reply with a bare yes or no. Reply ONLY with a JSON object with keys eligible (boolean), criterion (string) and reasoning (string).' }, { role: 'user', content: 'Scheme: ' + ($json.name || '') + ' | Free-text criterion: ' + ($json.other_criteria || '') + ' | Applicant profile: ' + JSON.stringify($json.profile || {}) } ], response_format: { type: 'json_object' } }) }}",
+        "options": {}
+      },
+      "id": "629a4165-df2f-464b-bec5-b3224d662e6e",
+      "name": "Groq Eligibility",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        672,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const scheme = $('Has Free-Text Criteria?').item.json;\nlet parsed = null;\ntry {\n  const content = $json.choices && $json.choices[0] && $json.choices[0].message ? $json.choices[0].message.content : null;\n  parsed = typeof content === 'string' ? JSON.parse(content) : content;\n} catch (e) {\n  parsed = null;\n}\nconst meta = { name: scheme.name, source_url: scheme.source_url, last_verified: scheme.last_verified, benefits: scheme.benefits };\nif (!parsed || typeof parsed.eligible === 'undefined') {\n  return { json: { scheme_id: scheme.id, ...meta, eligible: false, confidence: 'low', matched_criteria: ['income threshold', 'occupation match'], failed_criteria: ['free-text criterion could not be evaluated'], explanation: 'Hard rules passed but the free-text criterion evaluation could not be parsed; needs manual review.' } };\n}\nconst criterion = parsed.criterion || 'free-text criterion';\nreturn { json: { scheme_id: scheme.id, ...meta, eligible: !!parsed.eligible, confidence: 'medium', matched_criteria: parsed.eligible ? ['income threshold', 'occupation match', criterion] : ['income threshold', 'occupation match'], failed_criteria: parsed.eligible ? [] : [criterion], explanation: parsed.reasoning || 'No reasoning provided.' } };"
+      },
+      "id": "3c3aa173-9220-4ba9-b196-fd9d9948413b",
+      "name": "Parse LLM Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "bd23c4bc-bf8a-4b6f-814a-4d56e8730c44",
+      "name": "Collect Results",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return { json: { scheme_id: $json.id, name: $json.name, source_url: $json.source_url, last_verified: $json.last_verified, benefits: $json.benefits, eligible: true, confidence: 'high', matched_criteria: ['income threshold', 'occupation match'], failed_criteria: [], explanation: 'Passed all hard rules; no free-text criteria to evaluate.' } };"
+      },
+      "id": "8e800537-e00d-40c1-945b-2477cf411475",
+      "name": "Mark Eligible by Rules",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const profile = $json.profile || {};\nconst income = Number(profile.income || 0);\nconst maxIncome = Number($json.max_family_income_inr || 0);\nconst schemeOcc = String($json.occupation || '').toLowerCase().trim();\nconst profOcc = String(profile.occupation || '').toLowerCase().trim();\nconst failed = [];\nconst matched = [];\nif (maxIncome && income > maxIncome) {\n  failed.push('income threshold (income ' + income + ' exceeds max ' + maxIncome + ')');\n} else {\n  matched.push('income threshold');\n}\nif (schemeOcc && schemeOcc !== 'any' && schemeOcc !== profOcc) {\n  failed.push('occupation match (requires ' + schemeOcc + ', applicant is ' + (profOcc || 'unknown') + ')');\n} else {\n  matched.push('occupation match');\n}\nreturn { json: { scheme_id: $json.id, name: $json.name, source_url: $json.source_url, last_verified: $json.last_verified, benefits: $json.benefits, eligible: false, confidence: 'high', matched_criteria: matched, failed_criteria: failed, explanation: 'Failed hard rules: ' + failed.join('; ') } };"
+      },
+      "id": "1aaccc5f-7f04-4e46-ac2f-cf315ab60110",
+      "name": "Mark Ineligible",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        384
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Called": {
+      "main": [
+        [
+          {
+            "node": "Passes Hard Rules?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Passes Hard Rules?": {
+      "main": [
+        [
+          {
+            "node": "Has Free-Text Criteria?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Ineligible",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Free-Text Criteria?": {
+      "main": [
+        [
+          {
+            "node": "Groq Eligibility",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Eligible by Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Eligibility": {
+      "main": [
+        [
+          {
+            "node": "Parse LLM Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse LLM Result": {
+      "main": [
+        [
+          {
+            "node": "Collect Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Eligible by Rules": {
+      "main": [
+        [
+          {
+            "node": "Collect Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Ineligible": {
+      "main": [
+        [
+          {
+            "node": "Collect Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "935d04ae-9d00-4cdb-88df-0b810f0cb9ef",
+  "meta": {
+    "instanceId": "6b235123a1def484ceddb913479e4f659caee09a56e313fc888ba4e436649fb6"
+  },
+  "nodeGroups": [
+    {
+      "id": "24ba52b2-90c0-4d91-b2f3-c57e37c6d9b1",
+      "name": "Evaluate free-text criteria",
+      "nodeIds": [
+        "629a4165-df2f-464b-bec5-b3224d662e6e",
+        "3c3aa173-9220-4ba9-b196-fd9d9948413b"
+      ],
+      "description": "Sends schemes with judgement-based criteria to Groq, which must name the exact criterion and its reasoning, then parses the verdict."
+    }
+  ],
+  "id": "ErMLtoBE3Y7uzTXe",
+  "tags": []
+}

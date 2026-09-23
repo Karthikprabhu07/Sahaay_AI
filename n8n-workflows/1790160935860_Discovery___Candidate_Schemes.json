@@ -1,0 +1,130 @@
+{
+  "name": "Discovery — Candidate Schemes",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "state"
+            },
+            {
+              "name": "need"
+            },
+            {
+              "name": "occupation"
+            },
+            {
+              "name": "income",
+              "type": "number"
+            }
+          ]
+        }
+      },
+      "id": "430300dd-45bd-4abf-bfef-ea1619fbef43",
+      "name": "When Called",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "Government Schemes"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "Schemes"
+        }
+      },
+      "id": "c09e49c4-b28e-45cf-a709-57bb24de2bbb",
+      "name": "Read Schemes",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "state-and-category",
+              "leftValue": "={{ (String($json.category || '').toLowerCase().trim() === String($('When Called').first().json.need || '').toLowerCase().trim()) && ( String($json.state || '').toLowerCase().trim() === String($('When Called').first().json.state || '').toLowerCase().trim() || ['national','all','central','all india','india'].includes(String($json.state || '').toLowerCase().trim()) ) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "17c49f80-ef50-4c38-bdba-f39a0e6c77d5",
+      "name": "Match State & Category",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        448,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Called": {
+      "main": [
+        [
+          {
+            "node": "Read Schemes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Schemes": {
+      "main": [
+        [
+          {
+            "node": "Match State & Category",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "5ba79b1e-65db-4ed7-971e-7e5d180a62b4",
+  "meta": {
+    "instanceId": "6b235123a1def484ceddb913479e4f659caee09a56e313fc888ba4e436649fb6"
+  },
+  "nodeGroups": [],
+  "id": "d6dpqCOBnoez6Hte",
+  "tags": []
+}

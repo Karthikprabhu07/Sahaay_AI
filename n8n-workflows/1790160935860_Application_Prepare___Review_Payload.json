@@ -1,0 +1,88 @@
+{
+  "name": "Application Prepare — Review Payload",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "application-prepare",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "42739447-33e6-40df-b94e-69c87d2cdc8e",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "654e07a5-be01-4506-95f3-c803e0ff5ae6"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const body = $json.body || {};\nconst profile = body.profile || {};\nconst scheme = body.scheme || {};\nconst docs = Array.isArray(body.document_statuses) ? body.document_statuses : [];\n\nconst application = {\n  status: 'draft_for_review',\n  applicant: {\n    full_name: profile.full_name || '',\n    state: profile.state || '',\n    occupation: profile.occupation || '',\n    income: profile.income != null ? profile.income : null,\n    need: profile.need || '',\n  },\n  scheme: {\n    id: scheme.id || '',\n    name: scheme.name || '',\n    benefits: scheme.benefits || '',\n    application_method: scheme.application_method || '',\n    source_url: scheme.source_url || '',\n  },\n  documents: docs.map((d) => ({\n    document_type: (d && d.document_type) || '',\n    status: (d && d.status) || 'missing',\n    note: (d && d.note) || '',\n  })),\n  document_summary: {\n    total: docs.length,\n    present: docs.filter((d) => d && d.status === 'present').length,\n    outstanding: docs.filter((d) => d && d.status && d.status !== 'present').length,\n  },\n  disclaimer: 'This is a draft assembled for human review only. It has not been submitted to any government portal.',\n};\n\nreturn { json: application };"
+      },
+      "id": "7c69572c-8c80-4959-8e68-9343edbf96f8",
+      "name": "Assemble Application",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "dd58ae9c-372a-45b5-973a-60c7508d35d4",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        448,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Assemble Application",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assemble Application": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "0d33beac-fa3d-44b5-a9ce-91f20d46ae0a",
+  "meta": {
+    "instanceId": "6b235123a1def484ceddb913479e4f659caee09a56e313fc888ba4e436649fb6"
+  },
+  "nodeGroups": [],
+  "id": "Fij1M44PQfo2UfVT",
+  "tags": []
+}

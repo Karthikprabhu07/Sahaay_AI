@@ -1,0 +1,197 @@
+{
+  "name": "TTS — Text to Speech (Sarvam AI)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "tts",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "3e65958d-a3d0-42b3-9ef8-60dfcaa27c87",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        96
+      ],
+      "webhookId": "1670622a-9c40-49c8-a98f-1e4ddc71a60a"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "text-not-empty",
+              "leftValue": "={{ $json.body.text }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "01245050-c85f-43fc-b738-63336710adbf",
+      "name": "Has Text?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        224,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.sarvam.ai/text-to-speech",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpTemplatedCustomAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"text\": {{ JSON.stringify($json.body.text) }}, \"language_code\": {{ JSON.stringify($json.body.language || \"en-IN\") }}, \"model\": \"bulbul:v3\", \"speaker\": \"shubh\" }",
+        "options": {}
+      },
+      "id": "482c7726-a473-4ba3-a933-d6cf14a50bff",
+      "name": "Sarvam TTS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        448,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const audios = $json.audios || [];\nconst combined = audios.join(\"\");\nconst buffer = Buffer.from(combined, \"base64\");\nconst bin = await this.helpers.prepareBinaryData(buffer, \"output.wav\", \"audio/wav\");\nreturn { json: { request_id: $json.request_id }, binary: { data: bin } };"
+      },
+      "id": "0d825eb2-24e8-4d2b-b470-797672bf6103",
+      "name": "Decode Audio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "binary",
+        "responseDataSource": "set",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "audio/wav"
+              }
+            ]
+          }
+        }
+      },
+      "id": "135ab414-4197-4001-b482-f798d0056ae4",
+      "name": "Respond Audio",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        896,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"error\": \"The 'text' field is required.\" }",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "75da53c8-522f-49b1-a052-a74bf5edfba8",
+      "name": "Respond Missing Text",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        448,
+        192
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Has Text?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Text?": {
+      "main": [
+        [
+          {
+            "node": "Sarvam TTS",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Missing Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sarvam TTS": {
+      "main": [
+        [
+          {
+            "node": "Decode Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decode Audio": {
+      "main": [
+        [
+          {
+            "node": "Respond Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "67cc9d5b-2e01-4a4f-9e36-0ff32f831106",
+  "meta": {
+    "instanceId": "6b235123a1def484ceddb913479e4f659caee09a56e313fc888ba4e436649fb6"
+  },
+  "nodeGroups": [],
+  "id": "hmM3UIMB393IV1DX",
+  "tags": []
+}

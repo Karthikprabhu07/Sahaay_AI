@@ -1,0 +1,104 @@
+{
+  "name": "Tracking \u2014 Mock Application Status",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## \u26a0\ufe0f MOCKED STATUS\nThis workflow returns a **hardcoded** status timeline.\nIt does not poll any real government system.\nSay this out loud during the demo \u2014 don't let it be mistaken for live tracking.",
+        "height": 180,
+        "width": 700,
+        "color": 5
+      },
+      "id": "sticky-mocked-label-0001",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -260
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "tracking",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "761ef359-5f44-4f78-aa4e-56ad34132f6f",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "12a8a1e1-e3c9-4e71-908b-869223871d3a"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const body = $json.body || {};\nconst application_id = body.application_id || 'UNKNOWN';\nconst timeline = [\n  { status: 'submitted', label: 'Application submitted', at: '2026-09-20T09:00:00Z' },\n  { status: 'under_review', label: 'Under review by department', at: '2026-09-21T11:30:00Z' },\n  { status: 'approved', label: 'Approved', at: '2026-09-23T10:15:00Z' },\n];\nreturn {\n  json: {\n    application_id,\n    current_status: timeline[timeline.length - 1].status,\n    timeline,\n    mocked: true,\n    note: body.application_id\n      ? 'This is a mocked status sequence, not live portal polling.'\n      : 'No application_id was provided; returning the mocked status sequence anyway.',\n  },\n};"
+      },
+      "id": "8fe1d19a-3b2a-4e7d-bcad-f28fce0f67a6",
+      "name": "Mock Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "89d67e6e-68d0-4221-939c-7fc57b32d4db",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        448,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Mock Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mock Status": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "8d26fd63-f770-4468-986d-c485c86b4a28",
+  "meta": {
+    "instanceId": "6b235123a1def484ceddb913479e4f659caee09a56e313fc888ba4e436649fb6"
+  },
+  "nodeGroups": [],
+  "id": "7RnWowja5IHqXGDB",
+  "tags": []
+}

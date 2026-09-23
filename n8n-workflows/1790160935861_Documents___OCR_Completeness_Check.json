@@ -1,0 +1,127 @@
+{
+  "name": "Documents \u2014 OCR Completeness Check",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "documents",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "c6f4069f-52a9-4347-bd98-81af930f1263",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "e69c68a2-6f96-4b13-a858-ec1c2f705128"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://vision.googleapis.com/v1/images:annotate",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ requests: [ { image: { source: { imageUri: String(($json.body || {}).blob_url || '') } }, features: [ { type: 'DOCUMENT_TEXT_DETECTION' } ] } ] }) }}",
+        "options": {}
+      },
+      "id": "717fdef1-a26a-451a-b22b-71719dd1f01d",
+      "name": "Vision OCR",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        224,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "function normalize(s) { return String(s || '').toLowerCase().replace(/\\s+/g, ' ').trim(); }\nconst body = $('Webhook').first().json.body || {};\nconst expected = String(body.expected_name || '').trim();\nconst docType = String(body.document_type || '');\n\nlet text = '';\ntry {\n  const r = ($json.responses && $json.responses[0]) || {};\n  text = (r.fullTextAnnotation && r.fullTextAnnotation.text) || (r.textAnnotations && r.textAnnotations[0] && r.textAnnotations[0].description) || '';\n} catch (e) {\n  text = '';\n}\n\nlet status, note;\nif (!text || !text.trim()) {\n  status = 'missing';\n  note = 'No readable text could be extracted from the document, or the file at blob_url could not be reached.';\n} else {\n  const normText = normalize(text);\n  const normExpected = normalize(expected);\n  if (normExpected && !normText.includes(normExpected)) {\n    status = 'name_mismatch';\n    note = 'The expected name \"' + expected + '\" was not found in the extracted document text.';\n  } else {\n    status = 'present';\n    note = 'The document is present and the expected name was found in the text. (Expiry-date checking was intentionally removed: free-text OCR cannot reliably tell an issue date from an expiry date, so this is a completeness/format check only, not an authenticity or validity claim.)';\n  }\n}\nreturn { json: { document_type: docType, status, note } };"
+      },
+      "id": "ee2e5cd7-d72f-4b47-bcb3-a4246d84f189",
+      "name": "Derive Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "23abdcc6-307d-4099-a755-846c51d8e253",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        672,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Vision OCR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vision OCR": {
+      "main": [
+        [
+          {
+            "node": "Derive Status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Derive Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Derive Status": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "07083d40-312e-4ea3-a744-53bfa7692b1f",
+  "meta": {
+    "instanceId": "6b235123a1def484ceddb913479e4f659caee09a56e313fc888ba4e436649fb6"
+  },
+  "nodeGroups": [],
+  "id": "WjOWFbXm2j4lLcaJ",
+  "tags": []
+}

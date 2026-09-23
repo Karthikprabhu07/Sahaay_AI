@@ -1,0 +1,140 @@
+{
+  "name": "Application Confirm \u2014 Mock Submission",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## \u26a0\ufe0f MOCKED SUBMISSION\nThis workflow does **not** submit anything to a real government portal.\nIt generates a fake `application_id` and appends an audit-trail row only.\nDo not present this as a live integration on demo day.",
+        "height": 180,
+        "width": 700,
+        "color": 5
+      },
+      "id": "sticky-mocked-label-0001",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -260
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "application-confirm",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "c6d1b352-03fd-4d50-90e7-5a519c2253a4",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "c59a6845-a6a3-495f-8a43-625023db4736"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const body = $json.body || {};\nconst app = body.application || {};\nconst now = new Date();\nconst rand = Math.random().toString(36).slice(2, 8).toUpperCase();\nconst pad = (n) => String(n).padStart(2, '0');\nconst application_id = 'APP-' + now.getFullYear() + pad(now.getMonth() + 1) + pad(now.getDate()) + '-' + rand;\nreturn {\n  json: {\n    application_id,\n    source: body.source || 'assistant',\n    confidence: body.confidence != null ? body.confidence : '',\n    decision: body.decision || 'approved',\n    timestamp: now.toISOString(),\n    scheme_id: app.scheme_id || '',\n    full_name: app.full_name || '',\n  },\n};"
+      },
+      "id": "88d63e18-dac7-4a10-93ac-4a18a6c03a6f",
+      "name": "Generate Mock ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "Select audit-trail spreadsheet"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "Select audit-trail sheet/tab"
+        }
+      },
+      "id": "14e70211-beda-4066-8237-5d02e1140d6a",
+      "name": "Audit Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        448,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ application_id: $(\"Generate Mock ID\").item.json.application_id, status: \"submitted\" }) }}",
+        "options": {}
+      },
+      "id": "3ed3c86e-dca4-449b-8f0a-3eca532f2a96",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        672,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Generate Mock ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Mock ID": {
+      "main": [
+        [
+          {
+            "node": "Audit Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Audit Log": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "046e6854-372c-4252-9fa0-2b09b9caf1ca",
+  "meta": {
+    "instanceId": "6b235123a1def484ceddb913479e4f659caee09a56e313fc888ba4e436649fb6"
+  },
+  "nodeGroups": [],
+  "id": "j653ONIRBAXDc2I1",
+  "tags": []
+}
