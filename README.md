@@ -4,6 +4,8 @@ A voice-first, multilingual AI agent that helps users discover, check eligibilit
 
 Built for **Build for Billions — Agentic AI For Billions** by **Team VoidMain()**, Mangalore Institute of Technology and Engineering (MITE).
 
+**Live Demo (Frontend Only):** [sahaay-agentic-ai.vercel.app](https://sahaay-agentic-ai.vercel.app/) — this link deploys the chat interface only. It is a visual/UI demo and should not be taken as a fully implemented or functional end-to-end system.
+
 ## Architecture
 
 ```
@@ -75,5 +77,3 @@ sahaay/
 | M Sachin Acharya | Document verification workflow — OCR-based completeness checks and eligibility rules logic |
 | Pavan M R | Scheme research and data curation — sourcing and verifying the government scheme entries and their official sources |
 | Keerthan | Testing, deployment, and demo preparation — end-to-end workflow testing and Vercel deployment |
-
-*This breakdown is a suggested split based on the project's actual components, not a confirmed record of who did what — adjust it to match how the team actually divided the work.*
